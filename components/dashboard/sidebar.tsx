@@ -1,0 +1,70 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ArrowRight, Headset } from "lucide-react";
+import { visibleNav, type NavArea } from "@/config/navigation";
+import { useRole } from "@/hooks/use-role";
+import { useAuthState } from "@/context/AuthContext";
+import { usePlan } from "@/lib/plan-store";
+import { ROLE_LABELS } from "@/lib/roles";
+import { cn } from "@/lib/utils";
+import type { DashboardData } from "@/types/dashboard";
+
+export function Sidebar({ data, onNavigate, area = "workspace" }: { data: DashboardData; onNavigate?: () => void; area?: NavArea }) {
+  const pathname = usePathname();
+  const { help } = data;
+  const { role } = useRole();
+  const { user } = useAuthState();
+  const isAdminArea = area === "admin";
+  const { can } = usePlan();
+  const displayName = isAdminArea ? user?.fullName || "Platform admin" : user?.businessName || user?.fullName || data.account.name;
+
+  return (
+    <div className="flex min-h-full flex-col gap-4 p-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-black/[0.06] bg-white p-3.5">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-lg font-semibold text-white">{displayName[0] || "A"}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-ink">{displayName}</p>
+          <span className="mt-0.5 inline-flex items-center rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand">{isAdminArea ? "Platform admin" : ROLE_LABELS[role]}</span>
+        </div>
+      </div>
+
+      <nav aria-label={isAdminArea ? "Admin console" : "Dashboard"} className="flex flex-col">
+        {visibleNav(role, area).map(({ label, href, icon: Icon, gap, feature }, idx) => {
+          const locked = feature ? !can(feature) : false;
+          const active = href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              style={{ animationDelay: `${idx * 45}ms`, animationFillMode: "both" }}
+              className={cn(
+                "group relative flex items-center gap-3.5 rounded-xl px-4 py-3 text-[14px] transition-all duration-200 animate-in fade-in slide-in-from-left-2 duration-300 active:scale-[0.98]",
+                gap && "mt-4",
+                active ? "bg-white font-semibold text-ink shadow-sm ring-1 ring-black/[0.06] before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-1 before:rounded-full before:bg-brand" : "text-slate-600 hover:translate-x-1 hover:bg-black/[0.04] hover:text-ink",
+              )}
+            >
+              <Icon className="size-[18px] shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-125" />
+              <span className="flex-1 truncate">{label}</span>
+              {locked ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Pro</span> : null}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto rounded-2xl border border-black/[0.06] bg-white p-5 text-center">
+        <span className="bg-brand/10 text-brand mx-auto flex size-11 items-center justify-center rounded-full">
+          <Headset className="size-5" />
+        </span>
+        <p className="mt-3 text-sm font-bold text-ink">{help.title}</p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">{help.description}</p>
+        <Link href={help.href} onClick={onNavigate} className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-ink text-sm font-semibold text-white hover:bg-black">
+          {help.cta} <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
+    </div>
+  );
+}
